@@ -5,11 +5,15 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
+
+  
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+  
     return const MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'To Do List',
       home: TodoList(),
     );
@@ -29,17 +33,31 @@ class _TodoListState extends State<TodoList> {
     {'todo': 'Create a To Do List in Flutter', 'state': false},
   ];
 
+  // Declare a TextEditingController
+  final _textSearchController = TextEditingController();
+
+  // List to hold the filtered tasks for search
+  List<Map<String, dynamic>> filteredList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    filteredList = List.from(myList); // Initialize with full list
+  }
+
   // Function to toggle the checkbox state
   void _toggleTodoState(int index, bool? value) {
     setState(() {
-      myList[index]['state'] = value ?? false;
+      filteredList[index]['state'] = value ?? false;
     });
   }
 
   // Function to add a new todo item
   void _addTodo(String todoText) {
     setState(() {
-      myList.add({'todo': todoText, 'state': false}); // Add a new todo with default state as false
+      myList.add({'todo': todoText, 'state': false});
+      filteredList =
+          List.from(myList); // Reset filtered list to full list after adding
     });
   }
 
@@ -68,7 +86,7 @@ class _TodoListState extends State<TodoList> {
                 String todoText = controller.text.trim();
                 if (todoText.isNotEmpty) {
                   _addTodo(todoText); // Add the todo to the list
-                  Navigator.of(context).pop(); // Close the dialog
+                  Navigator.of(context).pop();
                 }
               },
               child: const Text('Save'),
@@ -79,23 +97,35 @@ class _TodoListState extends State<TodoList> {
     );
   }
 
+  // Search method to filter tasks
+  void _searchTask(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        filteredList =
+            List.from(myList); // Show full list if search query is empty
+      } else {
+        filteredList = myList.where((task) {
+          return task['todo'].toLowerCase().contains(query.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
+  // Function to delete a task
+  void _deleteTask(int index) {
+    setState(() {
+      myList.removeAt(index); // Remove the task from the list
+      filteredList = List.from(myList); // Update the filtered list
+    });
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddTodoDialog, // Show the dialog when pressed
-        child: const Icon(Icons.add),
-      ),
-      appBar: AppBar(
-        title: const Text(
-          'To Do List',
-          style: TextStyle(
-            color: Color.fromARGB(255, 3, 8, 77),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: const Color.fromARGB(41, 42, 40, 41),
-      ),
+      floatingActionButton: _floatingActionButton(),
+      appBar: _appBar(),
       body: Container(
         decoration: BoxDecoration(
           color: const Color.fromARGB(11, 12, 11, 4),
@@ -103,44 +133,104 @@ class _TodoListState extends State<TodoList> {
         ),
         alignment: Alignment.center,
         padding: const EdgeInsets.all(20),
-        child: ListView.builder(
-          itemCount: myList.length,
-          itemBuilder: (context, index) {
-            return Container(
-              padding: const EdgeInsets.all(10),
-              margin: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: const Color.fromARGB(41, 42, 40, 41),
-                border: Border.all(color: const Color.fromARGB(255, 3, 8, 77)),
-                borderRadius: const BorderRadius.all(Radius.circular(10)),
-              ),
-              child: Row(
-                children: [
-                  Checkbox(
-                    value: myList[index]['state'],
-                    onChanged: (value) {
-                      _toggleTodoState(index, value);
-                    },
+        child: Column(
+          children: [
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: TextField(
+                controller: _textSearchController,
+                decoration: InputDecoration(
+                  labelText: 'Search for a task',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  Expanded( // To prevent overflow if the text is long
-                    child: Text(
-                      myList[index]['todo'],
-                      style: TextStyle(
-                        color: const Color.fromARGB(255, 3, 8, 77),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        decoration: myList[index]['state']
-                            ? TextDecoration.lineThrough
-                            : TextDecoration.none,
-                      ),
-                    ),
-                  ),
-                ],
+                  contentPadding: const EdgeInsets.all(0),
+                  prefixIcon: const Icon(Icons.search),
+                ),
+                onChanged: _searchTask,
               ),
-            );
-          },
+            ),
+            // ListView to display tasks
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredList.length,
+                itemBuilder: (context, index) {
+                  return _containerTask(index);
+                },
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Container _containerTask(int index) {
+    return Container(
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(41, 42, 40, 41),
+                    border: Border.all(
+                      color: const Color.fromARGB(255, 3, 8, 77),
+                    ),
+                    borderRadius: const BorderRadius.all(Radius.circular(10)),
+                  ),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: filteredList[index]['state'],
+                        onChanged: (value) {
+                          _toggleTodoState(index, value);
+                        },
+                      ),
+                      Expanded(
+                        child: Text(
+                          filteredList[index]['todo'],
+                          style: TextStyle(
+                            color: const Color.fromARGB(255, 3, 8, 77),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            decoration: filteredList[index]['state']
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _deleteTask(index),
+                        icon:const Icon(
+                            Icons.delete,
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+  }
+
+  // Floating action button
+  FloatingActionButton _floatingActionButton() {
+    return FloatingActionButton(
+      onPressed: _showAddTodoDialog,
+      backgroundColor: const Color.fromARGB(41, 42, 40, 41),
+      hoverColor: const Color.fromARGB(41, 42, 40, 80),
+      child: const Icon(Icons.add),
+    );
+  }
+
+  // AppBar widget
+  AppBar _appBar() {
+    return AppBar(
+      title: const Text(
+        'To Do List',
+        style: TextStyle(
+          color: Color.fromARGB(255, 3, 8, 77),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      backgroundColor: const Color.fromARGB(41, 42, 40, 41),
+      elevation: 0,
     );
   }
 }
